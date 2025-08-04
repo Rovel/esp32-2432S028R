@@ -16,7 +16,7 @@
 
 static const char *TAG = "touch";
 
-esp_err_t touch_init(esp_lcd_touch_handle_t *tp)
+esp_err_t touch_controller_init(esp_lcd_touch_handle_t *tp)
 {
     ESP_LOGI(TAG, "Initializing touch controller...");
     

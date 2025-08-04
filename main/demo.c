@@ -11,6 +11,7 @@
 #include <esp_log.h>
 #include <esp_err.h>
 #include <esp_check.h>
+#include <nvs_flash.h>
 
 #include <lvgl.h>
 #include <esp_lvgl_port.h>
@@ -20,6 +21,7 @@
 #include "frontend/keypad/keypad.h"
 #include "frontend/calibration/calibration.h"
 #include "frontend/home/home.h"
+#include "frontend/wifi/wifi.h"
 
 static const char *TAG = "demo";
 
@@ -40,6 +42,7 @@ void create_keypad_ui(void) {
     create_keypad_screen();
     create_calibration_screen();
     create_home_screen();
+    create_wifi_screen();
     
     // Start with calibration screen for testing touch coordinates
     switch_to_calibration();
@@ -105,6 +108,15 @@ void app_main(void)
 
     ESP_LOGI(TAG, "=== ESP32 CYD Touch Debug Application Starting ===");
 
+    // Initialize NVS early for WiFi and other components
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+    ESP_LOGI(TAG, "NVS initialized");
+
     ESP_ERROR_CHECK(lcd_display_brightness_init());
     ESP_LOGI(TAG, "LCD brightness initialized");
 
@@ -119,7 +131,7 @@ void app_main(void)
     }
     ESP_LOGI(TAG, "LVGL initialized");
     
-    ESP_ERROR_CHECK(touch_init(&tp));
+    ESP_ERROR_CHECK(touch_controller_init(&tp));
     ESP_LOGI(TAG, "Touch controller initialized");
     
     // Use the simple touch integration with esp_lvgl_port

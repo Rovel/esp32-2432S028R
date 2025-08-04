@@ -5,6 +5,9 @@ idf_component_register(SRCS demo.c
                            frontend/calibration/calibration.c
                            frontend/home/home.c
                            frontend/passkey/passkey_change.c
-                    INCLUDE_DIRS "."
-                    REQUIRES esp_lcd driver nvs_flash esp_timer
+                           frontend/wifi/wifi.c
+                           components/keyboard/keyboard.c
+                           components/keyboard/keyboard_example.c
+                    INCLUDE_DIRS "." "components"
+                    REQUIRES esp_lcd driver nvs_flash esp_timer esp_wifi
                     )

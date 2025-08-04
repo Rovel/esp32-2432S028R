@@ -2,6 +2,7 @@
 #include "../keypad/keypad.h"
 #include "../passkey/passkey_change.h"
 #include "../calibration/calibration.h"
+#include "../wifi/wifi.h"
 #include <string.h>
 #include "esp_system.h"
 #include "esp_heap_caps.h"
@@ -30,7 +31,7 @@ esp_timer_handle_t idle_timer = NULL;
 static bool timer_created = false;
 
 // Timer configuration
-#define IDLE_TIMEOUT_SECONDS 10
+#define IDLE_TIMEOUT_SECONDS 60
 #define IDLE_TIMEOUT_US (IDLE_TIMEOUT_SECONDS * 1000000) // Convert to microseconds
 
 // Idle timer callback - switches back to keypad after timeout
@@ -45,28 +46,42 @@ void home_activity_event_handler(lv_event_t *e) {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t *obj = lv_event_get_target(e);
     
-    // Check if logout button was clicked
+    // Check if button was clicked
     if (code == LV_EVENT_CLICKED) {
-        // Check if this is the logout button by checking its text
-        lv_obj_t *child = lv_obj_get_child(obj, 0);
-        if (child && lv_obj_check_type(child, &lv_label_class)) {
-            const char *text = lv_label_get_text(child);
-            if (text && strcmp(text, "Logout") == 0) {
+        // Check if this is a list button by getting its text directly
+        const char *text = NULL;
+        
+        // For list buttons, get text from the button's label child
+        if (lv_obj_get_child_cnt(obj) > 0) {
+            lv_obj_t *child = lv_obj_get_child(obj, -1); // Get last child (label)
+            if (child && lv_obj_check_type(child, &lv_label_class)) {
+                text = lv_label_get_text(child);
+            }
+        }
+        
+        if (text) {
+            if (strcmp(text, "Logout") == 0) {
                 ESP_LOGI(TAG, "Logout button clicked, switching to keypad");
                 home_stop_idle_timer();
                 switch_to_keypad();
                 return;
             }
-            else if (text && strcmp(text, "Change Passkey") == 0) {
+            else if (strcmp(text, "Change Passkey") == 0) {
                 ESP_LOGI(TAG, "Change Passkey button clicked, switching to passkey change screen");
                 home_stop_idle_timer();
                 switch_to_passkey_change();
                 return;
             }
-            else if (text && strcmp(text, "Touch Calibration") == 0) {
+            else if (strcmp(text, "Touch Calibration") == 0) {
                 ESP_LOGI(TAG, "Touch Calibration button clicked, switching to calibration screen");
                 home_stop_idle_timer();
                 switch_to_calibration();
+                return;
+            }
+            else if (strcmp(text, "WiFi Settings") == 0) {
+                ESP_LOGI(TAG, "WiFi Settings button clicked, switching to wifi screen");
+                home_stop_idle_timer();
+                switch_to_wifi();
                 return;
             }
         }
@@ -363,38 +378,50 @@ static void create_settings_tab(void) {
     lv_obj_set_style_text_color(title, lv_color_hex(0x00FF00), 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
     
-    // Change passkey button
-    lv_obj_t *passkey_btn = lv_btn_create(tab_settings);
-    lv_obj_set_size(passkey_btn, 150, 40);
-    lv_obj_align(passkey_btn, LV_ALIGN_CENTER, 0, -50);
-    lv_obj_set_style_bg_color(passkey_btn, lv_color_hex(0x0066CC), 0);
+    // Create list container
+    lv_obj_t *list = lv_list_create(tab_settings);
+    lv_obj_set_size(list, lv_pct(90), 160);
+    lv_obj_align(list, LV_ALIGN_CENTER, 0, 10);
+    lv_obj_set_style_bg_color(list, lv_color_hex(0x2C2C2C), 0);
+    lv_obj_set_style_border_color(list, lv_color_hex(0x404040), 0);
+    lv_obj_set_style_border_width(list, 1, 0);
+    lv_obj_set_style_radius(list, 5, 0);
+    
+    // Add settings items to the list
+    
+    // Change passkey item
+    lv_obj_t *passkey_btn = lv_list_add_btn(list, LV_SYMBOL_SETTINGS, "Change Passkey");
+    lv_obj_set_style_bg_color(passkey_btn, lv_color_hex(0x0066CC), LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(passkey_btn, lv_color_hex(0x0088FF), LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(passkey_btn, lv_color_white(), 0);
     lv_obj_add_event_cb(passkey_btn, home_activity_event_handler, LV_EVENT_CLICKED, NULL);
     
-    lv_obj_t *passkey_label = lv_label_create(passkey_btn);
-    lv_label_set_text(passkey_label, "Change Passkey");
-    lv_obj_center(passkey_label);
-    
-    // Touch calibration button
-    lv_obj_t *calib_btn = lv_btn_create(tab_settings);
-    lv_obj_set_size(calib_btn, 150, 40);
-    lv_obj_align(calib_btn, LV_ALIGN_CENTER, 0, -5);
-    lv_obj_set_style_bg_color(calib_btn, lv_color_hex(0x006600), 0);
+    // Touch calibration item
+    lv_obj_t *calib_btn = lv_list_add_btn(list, LV_SYMBOL_SETTINGS, "Touch Calibration");
+    lv_obj_set_style_bg_color(calib_btn, lv_color_hex(0x006600), LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(calib_btn, lv_color_hex(0x008800), LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(calib_btn, lv_color_white(), 0);
     lv_obj_add_event_cb(calib_btn, home_activity_event_handler, LV_EVENT_CLICKED, NULL);
     
-    lv_obj_t *calib_label = lv_label_create(calib_btn);
-    lv_label_set_text(calib_label, "Touch Calibration");
-    lv_obj_center(calib_label);
+    // WiFi settings item
+    lv_obj_t *wifi_btn = lv_list_add_btn(list, LV_SYMBOL_WIFI, "WiFi Settings");
+    lv_obj_set_style_bg_color(wifi_btn, lv_color_hex(0x6600CC), LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(wifi_btn, lv_color_hex(0x8800FF), LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(wifi_btn, lv_color_white(), 0);
+    lv_obj_add_event_cb(wifi_btn, home_activity_event_handler, LV_EVENT_CLICKED, NULL);
     
-    // Logout button
-    lv_obj_t *logout_btn = lv_btn_create(tab_settings);
-    lv_obj_set_size(logout_btn, 100, 40);
-    lv_obj_align(logout_btn, LV_ALIGN_CENTER, 0, 40);
-    lv_obj_set_style_bg_color(logout_btn, lv_color_hex(0xCC0000), 0);
+    // System info item (non-clickable)
+    lv_obj_t *info_btn = lv_list_add_btn(list, LV_SYMBOL_SETTINGS, "System Information");
+    lv_obj_set_style_bg_color(info_btn, lv_color_hex(0x404040), LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(info_btn, lv_color_hex(0xCCCCCC), 0);
+    lv_obj_clear_flag(info_btn, LV_OBJ_FLAG_CLICKABLE);
+    
+    // Logout item (separated for visual distinction)
+    lv_obj_t *logout_btn = lv_list_add_btn(list, LV_SYMBOL_POWER, "Logout");
+    lv_obj_set_style_bg_color(logout_btn, lv_color_hex(0xCC0000), LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(logout_btn, lv_color_hex(0xFF0000), LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(logout_btn, lv_color_white(), 0);
     lv_obj_add_event_cb(logout_btn, home_activity_event_handler, LV_EVENT_CLICKED, NULL);
-    
-    lv_obj_t *logout_label = lv_label_create(logout_btn);
-    lv_label_set_text(logout_label, "Logout");
-    lv_obj_center(logout_label);
     
     // Timeout information
     lv_obj_t *timeout_info = lv_label_create(tab_settings);
