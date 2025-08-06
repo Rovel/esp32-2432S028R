@@ -380,12 +380,12 @@ static void create_settings_tab(void) {
     
     // Create list container
     lv_obj_t *list = lv_list_create(tab_settings);
-    lv_obj_set_size(list, lv_pct(90), 160);
-    lv_obj_align(list, LV_ALIGN_CENTER, 0, 10);
-    lv_obj_set_style_bg_color(list, lv_color_hex(0x2C2C2C), 0);
-    lv_obj_set_style_border_color(list, lv_color_hex(0x404040), 0);
-    lv_obj_set_style_border_width(list, 1, 0);
-    lv_obj_set_style_radius(list, 5, 0);
+    // lv_obj_set_size(list, lv_pct(90), 160);
+    // lv_obj_align(list, LV_ALIGN_CENTER, 0, 10);
+    // lv_obj_set_style_bg_color(list, lv_color_hex(0x2C2C2C), 0);
+    // lv_obj_set_style_border_color(list, lv_color_hex(0x404040), 0);
+    // lv_obj_set_style_border_width(list, 1, 0);
+    // lv_obj_set_style_radius(list, 5, 0);
     
     // Add settings items to the list
     

@@ -24,6 +24,7 @@ static bool wifi_initialized = false;
 static bool wifi_enabled = false;
 static bool scanning = false;
 static bool ui_update_needed = false;
+static uint32_t wifi_start_time = 0;  // Track when WiFi was started
 
 // WiFi scan results
 static wifi_ap_record_t ap_records[20];
@@ -103,6 +104,7 @@ esp_err_t wifi_init(void) {
 
     wifi_initialized = true;
     ESP_LOGI(TAG, "WiFi initialized successfully");
+
     return ESP_OK;
 }
 
@@ -120,6 +122,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
             case WIFI_EVENT_STA_START:
                 ESP_LOGI(TAG, "WiFi station started");
                 wifi_enabled = true;
+                wifi_start_time = xTaskGetTickCount();  // Record when WiFi started
                 ui_update_needed = true;
                 break;
             case WIFI_EVENT_STA_STOP:
@@ -172,7 +175,7 @@ static void update_network_list(void) {
     if (!wifi_list) return;
 
     // Clear existing list items
-    lv_obj_clean(wifi_list);
+    // lv_obj_clean(wifi_list);
 
     if (!wifi_enabled || ap_count == 0) {
         if (!wifi_enabled) {
@@ -352,7 +355,7 @@ void create_wifi_screen(void) {
     
     // Network list
     wifi_list = lv_list_create(wifi_screen);
-    lv_obj_set_size(wifi_list, lv_pct(90), 130);
+    lv_obj_set_size(wifi_list, lv_pct(90), 95);
     lv_obj_align(wifi_list, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_set_style_bg_color(wifi_list, lv_color_hex(0x2C2C2C), 0);
     lv_obj_set_style_border_color(wifi_list, lv_color_hex(0x404040), 0);
@@ -381,11 +384,13 @@ void wifi_enable(void) {
         return;
     }
     
+    ESP_LOGI(TAG, "Starting WiFi...");
     esp_err_t ret = esp_wifi_start();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start WiFi: %s", esp_err_to_name(ret));
     } else {
-        ESP_LOGI(TAG, "WiFi enabled");
+        ESP_LOGI(TAG, "WiFi start command sent successfully");
+        // Note: wifi_enabled will be set to true in the event handler
     }
 }
 
@@ -417,23 +422,33 @@ void wifi_start_scan(void) {
         return;
     }
     
+    // Check if enough time has passed since WiFi started
+    uint32_t time_since_start = (xTaskGetTickCount() - wifi_start_time) * portTICK_PERIOD_MS;
+    if (time_since_start < 3000) {  // Wait at least 3 seconds after WiFi start
+        ESP_LOGW(TAG, "WiFi started only %lu ms ago, waiting before scan", time_since_start);
+        return;
+    }
+    
+    ESP_LOGI(TAG, "Starting WiFi scan...");
+    
     wifi_scan_config_t scan_config = {
         .ssid = NULL,
         .bssid = NULL,
         .channel = 0,
         .show_hidden = false,
         .scan_type = WIFI_SCAN_TYPE_ACTIVE,
-        .scan_time.active.min = 100,
-        .scan_time.active.max = 300
+        .scan_time.active.min = 200,
+        .scan_time.active.max = 500
     };
     
     esp_err_t ret = esp_wifi_scan_start(&scan_config, false);
     if (ret == ESP_OK) {
         scanning = true;
-        ESP_LOGI(TAG, "WiFi scan started");
+        ESP_LOGI(TAG, "WiFi scan started successfully");
         ui_update_needed = true;  // Trigger UI update
     } else {
         ESP_LOGE(TAG, "Failed to start WiFi scan: %s", esp_err_to_name(ret));
+        scanning = false;
     }
 }
 
