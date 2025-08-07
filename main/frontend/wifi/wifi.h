@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 /**
- * @brief WiFi screen management functions
+ * @brief WiFi screen management functions using LVGL Menu system
  */
 
 /**
@@ -20,7 +20,7 @@ extern "C" {
 esp_err_t wifi_init(void);
 
 /**
- * @brief Create the WiFi settings screen
+ * @brief Create the WiFi settings screen with complex menu structure
  */
 void create_wifi_screen(void);
 
@@ -60,6 +60,19 @@ void wifi_disable(void);
  * @return true if enabled, false otherwise
  */
 bool wifi_is_enabled(void);
+
+/**
+ * @brief Get current WiFi mode
+ * @return wifi_mode_t Current WiFi mode
+ */
+wifi_mode_t wifi_get_mode(void);
+
+/**
+ * @brief Set WiFi mode
+ * @param mode WiFi mode to set
+ * @return esp_err_t ESP_OK on success
+ */
+esp_err_t wifi_set_mode(wifi_mode_t mode);
 
 #ifdef __cplusplus
 }
